@@ -132,7 +132,7 @@ for timestep, audio_slice in zip(timesteps, slices):
 
         print(start, timesteps[0])
         
-        subs = sub.Subtitles("data/spider_man_source.srt", start=start+timesteps[0]-5, end=start+timesteps[1]+10)
+        # subs = sub.Subtitles("data/spider_man_source.srt", start=start+timesteps[0]-5, end=start+timesteps[1]+10)
         aligned_subtitles, aligned_times = aligner.align(tokens, timesteps, previous_tokens=previous_tokens, previous_timesteps=previous_timesteps, subtitles=subs)
         previous_tokens = tokens
         previous_timesteps = timesteps
