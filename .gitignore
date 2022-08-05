@@ -1,0 +1,11 @@
+kenlm
+ngram-lm
+lexicon.txt
+data
+_assets
+__pycache__
+output
+output_subtitles
+*.wav
+*.png
+pretrained_models
