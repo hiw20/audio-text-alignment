@@ -24,6 +24,11 @@ class Subtitles:
 
         self.times = [[sub.start.to_time(), sub.end.to_time()] for sub in self.subtitles]
 
+
+        self.enumerated_subtitles = {}
+        for i, sub in enumerate(self.subtitles):
+            self.enumerated_subtitles[sub.text] = i
+
     def _load_subtitles(self, filepath):
         subtitles = pysrt.open(filepath)
 
@@ -71,6 +76,12 @@ class Subtitles:
                     "subtitles_sentences": subtitles_sentences,
                     "subtitles_whole_text": subtitles_whole_text,
                     "subtitles_unique_words": subtitles_unique_words}
+        
+    def find(self, subtitle):
+        if subtitle in self.enumerated_subtitles:
+            return self.enumerated_subtitles[subtitle]
+        else:
+            return -1
 
 def write_subtitles(filepath, subtitles, times, start_offset=0.0):
     with open(filepath, "w") as file:
