@@ -16,6 +16,10 @@ from source_separater import SourceSeparator
 import copy
 
 import argparse
+
+import decoder as dec
+import subtitles as sub
+
 parser = argparse.ArgumentParser()
 parser.add_argument("--start", type=int)
 parser.add_argument("--end", type=int)
@@ -23,6 +27,15 @@ args = parser.parse_args()
 
 start = args.start
 end = args.end
+
+subs = sub.Subtitles("data/spider_man_source.srt", start=start, end=end)
+start = subs.subtitles[0].start
+end = subs.subtitles[-1].end
+start = start.hours/3600 + start.minutes/60 + start.seconds
+end = end.hours/3600 + end.minutes/60 + end.seconds
+
+
+
 
 
 # separator.separate_to_file("data/spider_man_short.wav", "output/spider_man_short")
@@ -64,7 +77,7 @@ waveform, sample_rate = torchaudio.load(SPEECH_FILE)
 
 print(waveform.shape)
 # waveform = waveform.mean(axis=0).unsqueeze(0)
-waveform = waveform[:, start*sample_rate:end*sample_rate]
+waveform = waveform[:, int(start*sample_rate):int(end*sample_rate)]
 print(waveform.shape)
 
 # #Resample waveform if needed
@@ -74,10 +87,7 @@ print(waveform.shape)
 print(waveform.shape)
 waveform = waveform.to(device)
 
-import decoder as dec
-import subtitles as sub
 
-subs = sub.Subtitles("data/spider_man_source.srt", start=start, end=end)
 
 decoder = dec.Decoder(waveform,\
     original_sample_rate=sample_rate,\
@@ -132,7 +142,7 @@ for timestep, audio_slice in zip(timesteps, slices):
 
         print(start, timesteps[0])
         
-        # subs = sub.Subtitles("data/spider_man_source.srt", start=start+timesteps[0]-5, end=start+timesteps[1]+10)
+        # subs = sub.Subtitles("data/spider_man_source.srt", start=start+timesteps[0]-20, end=start+timesteps[1]+20)
         aligned_subtitles, aligned_times = aligner.align(tokens, timesteps, previous_tokens=previous_tokens, previous_timesteps=previous_timesteps, subtitles=subs)
         previous_tokens = tokens
         previous_timesteps = timesteps

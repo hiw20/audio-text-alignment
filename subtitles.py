@@ -10,7 +10,11 @@ class Subtitles:
     def __init__(self, filepath, start=0, end=None):
         self.subtitles = self._load_subtitles(filepath)
         if start > 0 or end is not None:
-            self.subtitles = self.subtitles.slice(starts_after={'seconds': start}, ends_before={'seconds': end})
+            # self.subtitles = self.subtitles.slice(starts_after={'seconds': start}, ends_before={'seconds': end})
+            start = min(start, len(self.subtitles))
+            end = min(end, len(self.subtitles))
+
+            self.subtitles = self.subtitles[start:end]
 
         cleaned_subtitles = self._clean_subtitles(self.subtitles)
         self.text = cleaned_subtitles["subtitles_text"]
