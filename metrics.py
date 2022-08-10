@@ -1,5 +1,5 @@
 from sklearn.metrics import accuracy_score
-import subtitles as subs
+import asr.subtitles as subs
 import matplotlib.pyplot as plt
 import numpy as np
 import scipy
@@ -68,36 +68,18 @@ class Accuracy(Metric):
                 accuracy.append(0)
         
         total = len(accuracy)
-
-        # print(pred_enumerated)
-        # print(ref_enumerated)
-            
-        
-        # ref_x_zero = ref_x[0]
-        # for i in range(len(ref_x)):
-        #     ref_x[i] = ref_x[i]# - ref_x_zero
-        
-        # pred_x_zero = pred_x[0]
-        # for i in range(len(pred_x)):
-        #     pred_x[i] = pred_x[i]# - pred_x_zero
-        
-        
-        # pred_x, pred_y = self._reject_outliers(pred_x, pred_y)
         
         print("Correct: {}, Incorrect: {}, Missed: {}, Total: {}, Accuracy: {}".format(correct, incorrect, len(accuracy) - correct - incorrect, total, correct/total))
-        # print("Ref length: {}, Pred length: {}".format(len(ref_hash), len(pred_hash)))
+
+        # plt.plot(range(len(ref_x)), ref_y, 'r.')
+        # plt.plot(range(len(pred_x)), pred_y, 'b.')
+
         plt.plot(ref_x, ref_y, 'r.')
         plt.plot(pred_x, pred_y, 'b.')
+        # plt.plot(pred_x, np.convolve(pred_y, np.ones(10)/10, 'same'), 'g.')
         #Save figure
         plt.savefig('plot.png')
     
-    def _reject_outliers(self, x, y, m=0.1):
-        x = np.array(x)
-        y = np.array(y)
-        d = np.abs(x - np.median(x))
-        mdev = np.median(d)
-        s = d/mdev if mdev else 0.
-        return x[s<m], y[s<m]
 
 if __name__ == "__main__":
     import argparse

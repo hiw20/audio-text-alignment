@@ -1,4 +1,4 @@
-import subtitles as sub
+import asr.subtitles as sub
 import difflib
 from difflib import SequenceMatcher
 from itertools import groupby
@@ -15,14 +15,6 @@ class Aligner():
         for i, sentence in enumerate(self.subtitles.sentences):
             self.subtitle_ranges[sentence] = {"original_text":self.subtitles.text[i], "range":[count, count + len(sentence)]}
             count += len(sentence) + 1
-
-        # print(self.subtitles.whole_text)
-        
-        # for k,v  in self.subtitle_ranges.items():
-        #     print("{}\n{}: {}\n{}: {}".format(self.subtitles.whole_text.find(k),\
-        #                                         k, len(k),\
-        #                                         v["original_text"], v["range"]))
-        #     print()
 
         self.unique_subtitles = []
 
@@ -41,27 +33,11 @@ class Aligner():
     def align(self, tokens, timesteps, previous_tokens=[], previous_timesteps=[], unique=False, subtitles=None):
         if subtitles is not None:
             self.enumerate_subtitles(subtitles)
-        # print(tokens)
-        # previous_tokens = copy.deepcopy(previous_tokens)
-        # previous_timesteps = copy.deepcopy(previous_timesteps)
-        # previous_tokens.extend(tokens)
-        # previous_timesteps.extend(timesteps)
-        # tokens = previous_tokens
-        # timesteps = previous_timesteps
-        # print(tokens)
-
-        # if len(timesteps) > 1:
-        #     print("PRE STEPS: {}".format([timesteps[0], timesteps[-1]]))
 
         tokens = copy.deepcopy(tokens)
         timesteps = copy.deepcopy(timesteps)
 
         sentences, sentence_times = self._string_match(tokens, timesteps, unique)
-        # if len(timesteps) > 1:
-        #     print("POST STEPS: {}".format(sentence_times))
-        # print("".join(tokens).replace("|", " "))
-        # print(sentences)
-
         
         return sentences, sentence_times
 
@@ -92,25 +68,11 @@ class Aligner():
             whole_text_hash_inv[v] = k
         
         encoded_whole_text = [whole_text_hash[word] for word in self.subtitles.whole_text.split()]
-        encoded_text = [whole_text_hash[word] for word in text.split()]
-        # print(encoded_text)
-        
-
+        encoded_text = [whole_text_hash[word] for word in text.split()]   
             
         alignment = align_fast(encoded_text, encoded_whole_text)
         best_match = print_alignment(encoded_text, encoded_whole_text, alignment, inv_hash=whole_text_hash_inv)
         best_idx = self.subtitles.whole_text.find(best_match)
-
-        # print("In: {}, Out: {}, Match: {}".format(text, best_match, self.subtitles.whole_text[best_idx:best_idx+len(text)]))
-        # best_idx = self.subtitles.whole_text.find(best_match)
-        # #Find best match for text in subtitles
-        # for i in range(0, len(self.subtitles.whole_text), 1):
-        #     string_to_check = self.subtitles.whole_text[i: i+text_lenth]
-        #     ratio = SequenceMatcher(None, text, string_to_check).quick_ratio()
-
-        #     if ratio > best_ratio:
-        #         best_ratio = ratio
-        #         best_idx = i
         
         #Count number of words in text
         word_count = len(text.split())
@@ -126,8 +88,12 @@ class Aligner():
 
                 #Find first matching subtitle
                 if sentence_range[0] <= best_idx <= sentence_range[1]:
-                    print("In: {}\n Out: {}\n Match: {}\n Sentence: {}".format(text, best_match, self.subtitles.whole_text[best_idx:best_idx+len(text)], sentence))
+                    # print("In: {}\n Out: {}\n Match: {}\n Sentence: {}".format(text, best_match, self.subtitles.whole_text[best_idx:best_idx+len(text)], sentence))
                     first_sentence_found = True
+
+                    in_sentence = text
+                    out_sentence = best_match
+
 
                 #Append sentence to list if it is the first one found
                 #or if the number of words extends into the next sentences
@@ -245,14 +211,4 @@ def print_alignment(x, y, alignment, inv_hash):
             max_len = len(s)
             max_len_idx = i
 
-    # print(max_len_idx, seq[max_len_idx])
-
     return seq[max_len_idx]
-    # print(seq(max_len_idx))
-    # print(" ".join(
-    #     "_" if i is None else inv_hash[x[i]] for i, _ in alignment
-    # ))
-
-    # print("".join(
-    #     "" if j is None else inv_hash[y[j]] for _, j in alignment
-    # ))

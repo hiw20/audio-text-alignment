@@ -1,9 +1,5 @@
-import difflib
-import string
 import torch
 from torchaudio.models.decoder import ctc_decoder
-from difflib import SequenceMatcher
-import numpy as np
 import torchaudio
 
 torch.set_num_threads(1)
@@ -39,7 +35,7 @@ class Decoder():
             tokens=self.tokens_filepath,
             lm=self.lm_filepath,
             nbest=1,
-            beam_size=4094,
+            beam_size=32,
             lm_weight=LM_WEIGHT,
             word_score=WORD_SCORE,
             beam_size_token=None
