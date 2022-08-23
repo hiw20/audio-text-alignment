@@ -30,18 +30,18 @@ class Aligner():
 
 
 
-    def align(self, tokens, timesteps, previous_tokens=[], previous_timesteps=[], unique=False, subtitles=None):
+    def align(self, tokens, timesteps, subtitles=None):
         if subtitles is not None:
             self.enumerate_subtitles(subtitles)
 
         tokens = copy.deepcopy(tokens)
         timesteps = copy.deepcopy(timesteps)
 
-        sentences, sentence_times = self._string_match(tokens, timesteps, unique)
+        sentences, sentence_times = self._string_match(tokens, timesteps)
         
         return sentences, sentence_times
 
-    def _string_match(self, tokens, timesteps, unique=True):
+    def _string_match(self, tokens, timesteps):
         text = "".join(tokens).replace("|", " ")
         text_lenth = len(text)
 

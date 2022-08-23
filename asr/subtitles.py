@@ -26,8 +26,10 @@ class Subtitles:
 
 
         self.enumerated_subtitles = {}
+        self.inv_enumerated_subtitles = {}
         for i, sub in enumerate(self.subtitles):
             self.enumerated_subtitles[sub.text] = i
+            self.inv_enumerated_subtitles[i] = sub.text
 
     def _load_subtitles(self, filepath):
         subtitles = pysrt.open(filepath)
@@ -82,6 +84,60 @@ class Subtitles:
             return self.enumerated_subtitles[subtitle]
         else:
             return -1
+    
+    def get(self, index):
+        if 0 < index < len(self.enumerated_subtitles):
+            self.inv_enumerated_subtitles
+
+            return self.inv_enumerated_subtitles[index]
+        
+        return ""
+
+    def word_idx_to_sub(self, index):
+        index_map = {}
+
+        idx = 0
+        for subt, sentence in zip(self.subtitles, self.sentences):
+            num_words = len(sentence.split())
+            for i in range(num_words):
+                index_map[idx+i] = subt.text
+            
+            idx += num_words
+        
+        return index_map[index]
+
+    def word_idx_to_sub_idx(self, index):
+        index_map = {}
+
+        idx = 0
+        for sentence_idx in range(len(self.sentences)):
+        # for subt, sentence in zip(self.subtitles, self.sentences):
+            subt = self.subtitles[sentence_idx]
+            sentence = self.sentences[sentence_idx]
+            num_words = len(sentence.split())
+            for i in range(num_words):
+                index_map[idx+i] = sentence_idx
+            
+            idx += num_words
+        
+        return index_map[index]
+
+    def sub_idx_to_word_idx(self, index):
+        index_map = {}
+
+        idx = 0
+        for sentence_idx in range(len(self.sentences)):
+        # for subt, sentence in zip(self.subtitles, self.sentences):
+            subt = self.subtitles[sentence_idx]
+            sentence = self.sentences[sentence_idx]
+            num_words = len(sentence.split())
+
+            index_map[sentence_idx] = idx
+            idx += num_words
+            
+            
+        
+        return index_map[index]
 
 def write_subtitles(filepath, subtitles, times, start_offset=0.0):
     with open(filepath, "w") as file:

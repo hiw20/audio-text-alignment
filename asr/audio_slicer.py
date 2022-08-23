@@ -6,7 +6,7 @@ class AudioSlicer():
     def __init__(self) -> None:
         pass
 
-    def slice(self, waveform, sample_rate, max_step=5, buffer_region=0.0, vad=False):
+    def slice(self, waveform, sample_rate, max_step=5, buffer_region=0.0, vad=True):
         model, utils = torch.hub.load(repo_or_dir='snakers4/silero-vad', model='silero_vad')
         (get_speech_timestamps, _, _, _, _) = utils
 

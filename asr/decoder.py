@@ -65,6 +65,10 @@ class Decoder():
 
         beam_search_result = self.decoder(emission)
 
+        # for result in beam_search_result:
+        #     for r in result:
+        #         print("{}\t{}".format(r.score, r.words))
+
         best_result = None
         best_score = -10e6
 
