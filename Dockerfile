@@ -1,4 +1,5 @@
-FROM ubuntu:20.04
+# FROM ubuntu:20.04
+FROM anibali/pytorch:2.0.0-cuda11.8-ubuntu22.04
 
 
 RUN apt-get update && apt-get upgrade -y && apt-get clean
@@ -19,7 +20,7 @@ RUN pip install -r app/requirements.txt
 
 COPY . /app
 
-RUN cd /app && python3 /app/wav2vec.py --start=0 --end=100
+# RUN cd /app && python3 /app/wav2vec.py --start=0 --end=100
 
-RUN rm -rf /app
-RUN mkdir /app
+# RUN rm -rf /app
+# RUN mkdir /app

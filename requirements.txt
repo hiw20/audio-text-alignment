@@ -12,3 +12,6 @@ tqdm
 Unidecode
 thefuzz
 pandas
+plotly
+kaleido
+jiwer
