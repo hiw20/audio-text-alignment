@@ -14,6 +14,7 @@ import datetime
 
 class Subtitles:
     def __init__(self, filepath, start=0, end=None):
+        self.filepath = filepath
         # Initialize the Subtitles object with a filepath and optional start and end parameters
         self.subtitles = self._load_subtitles(filepath)
         # Check if start is greater than 0 or end is not None

@@ -62,7 +62,9 @@ class AudioSlicer:
                 step = min(max_step, abs(stop - start))
 
                 for i in np.arange(start, stop, step):
-                    timesteps.append({"start": i, "end": i + step})
+                    begin = i
+                    end = min(stop, i + step)
+                    timesteps.append({"start": begin, "end": end})
 
         else:
             timesteps = []
@@ -71,9 +73,13 @@ class AudioSlicer:
             stop = int(waveform.shape[1] / sample_rate)
             step = max_step
 
+            print(f"Start: {start}, Stop: {stop}, Step: {step}")
+
             # Generate fixed timesteps for slicing
             for i in range(start, stop, step):
-                timesteps.append({"start": i, "end": i + step})
+                end = min(stop, i + step)
+                timesteps.append({"start": i, "end": end})
+                print(f"Start: {i}, Stop: {end}, Step: {i + step}")
 
         slices = []
         ammended_timesteps = []

@@ -15,3 +15,6 @@ pandas
 plotly
 kaleido
 jiwer
+transformers
+biopython
+numba

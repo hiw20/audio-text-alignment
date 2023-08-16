@@ -18,18 +18,23 @@ class Locator:
         # Append the current index to the list of previous indices
         self.previous_indices.append(index)
 
+        print(
+            f"Locator Indices: {self.previous_indices[-10:] if len(self.previous_indices) > 10 else []}"
+        )
+
         # Check if the number of previous indices is less than 3
         # as 3 are needed to confirm location confidence
         if len(self.previous_indices) < 3:
             # Increment the current index by 1
             self.current_index += 1
+
         else:
             # Check if the difference between the second last and third last indices
             # is between 0 and 10, and the difference between the last and second last
             # indices is also between 0 and 10
             if (
-                0 < self.previous_indices[-2] - self.previous_indices[-3] < 10
-                and 0 < self.previous_indices[-1] - self.previous_indices[-2] < 10
+                0 < self.previous_indices[-2] - self.previous_indices[-3] < 5
+                and 0 < self.previous_indices[-1] - self.previous_indices[-2] < 5
             ):
                 # Set the current index to the provided index
                 self.current_index = index

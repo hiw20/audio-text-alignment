@@ -120,7 +120,7 @@ class Decoder:
         tokens = tokens[1:-1]
         timesteps = timesteps[1:-1]
 
-        return tokens, timesteps
+        return tokens, timesteps, emission
 
     def _extract_emission(self, waveform, model):
         """
@@ -139,10 +139,10 @@ class Decoder:
             waveform, self.original_sample_rate, self.resample_rate
         )
         # Take the mean across channels and add a batch dimension
-        waveform = waveform.mean(axis=0).unsqueeze(0)
+        waveform = waveform.mean(axis=0).unsqueeze(0).to(self.device)
         # Extract the emission tensor using the model
         emission, _ = model(waveform)
         # Move the emission tensor to the specified device
-        emission = emission.to(self.device)
+        emission = emission.to("cpu")
 
         return emission

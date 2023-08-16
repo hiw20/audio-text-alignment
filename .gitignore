@@ -1,11 +1,12 @@
 kenlm
 ngram-lm
 lexicon.txt
+ngram_data
 data
 _assets
 __pycache__
 output
 output_subtitles
-*.wav
-*.png
+# *.wav
+# *.png
 pretrained_models

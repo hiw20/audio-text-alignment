@@ -1,6 +1,8 @@
 from collections import defaultdict
 from asr.emission import Emission
 import numpy as np
+from Bio import pairwise2
+from Bio.Align import PairwiseAligner
 
 
 class NWAligner(Emission):
@@ -8,7 +10,19 @@ class NWAligner(Emission):
     This class represents an NWAligner, which is used for aligning predicted words with reference words based on the Needleman-Wunsch algorithm.
     """
 
-    def __init__(self, subtitles, predicted_words=[], predicted_word_times=[]):
+    def __init__(
+        self,
+        subtitles,
+        predicted_words=[],
+        predicted_word_times=[],
+        mode="global",
+        match_score=10,
+        mismatch_score=-1,
+        open_gap_score=-1,
+        extend_gap_score=-1,
+        target_end_gap_score=0.0,
+        query_end_gap_score=0.0,
+    ):
         """
         Initializes the NWAligner object.
 
@@ -25,6 +39,20 @@ class NWAligner(Emission):
         self.predicted_words_sentence_idx = []
         self.reference_words = []
         self.number_of_previous_words = 0
+
+        self.history = []
+        self.history_length = 15
+
+        self.pred_align = None
+        self.ref_align = None
+
+        self.mode = mode
+        self.match_score = match_score
+        self.mismatch_score = mismatch_score
+        self.open_gap_score = open_gap_score
+        self.extend_gap_score = extend_gap_score
+        self.target_end_gap_score = target_end_gap_score
+        self.query_end_gap_score = query_end_gap_score
 
     def split_text_into_words(self):
         """
@@ -77,8 +105,17 @@ class NWAligner(Emission):
         new_words = "".join(tokens).replace("|", " ").split()
         self.predicted_words.extend(new_words)
 
+        if len(tokens) > 0:
+            if tokens[0] == "|":
+                tokens = tokens[1:]
+                timesteps = timesteps[1:]
+
         # Finding the indices where '|' occurs in the tokens list
         split_idx = [i for i, s in enumerate(tokens) if s == "|"]
+
+        for idx in split_idx:
+            if idx != len(timesteps) - 1:
+                timesteps[idx] = timesteps[idx + 1]
 
         # Splitting the timesteps list based on the indices found above and storing the start and end times for each group of predicted words
         for t in np.split(timesteps, split_idx):
@@ -124,26 +161,45 @@ class NWAligner(Emission):
         # Creating lists of hashed predicted and reference words
         predicted_words_hashed = [word_hashmap[word] for word in self.predicted_words]
         reference_words_hashed = [word_hashmap[word] for word in self.reference_words]
+        history_words_hashed = [word_hashmap[word] for word in self.history]
 
-        # Performing the Needleman-Wunsch algorithm to align the predicted and reference words
-        pred_align, ref_align = self.needleman_wunsch(
-            predicted_words_hashed, reference_words_hashed, gap=1, mismatch=1, match=1
+        best_alignment = self.needleman_wunsch(
+            reference_seq=reference_words_hashed,
+            predicted_seq=history_words_hashed + predicted_words_hashed,
+            mode=self.mode,
+            mismatch_score=self.mismatch_score,
+            match_score=self.match_score,
+            open_gap_score=self.open_gap_score,
+            extend_gap_score=self.extend_gap_score,
+            target_end_gap_score=self.target_end_gap_score,
+            query_end_gap_score=self.query_end_gap_score,
         )
 
-        # Converting the indices from the alignment to their corresponding words
-        pred_align = [i if i != -1 else None for i in pred_align]
-        ref_align = [i if i != -1 else None for i in ref_align]
+        idx_of_pred_words = len(self.history)
 
-        pred_align = [
-            inverse_word_hashmap[i] if i is not None else "-" for i in pred_align
-        ]
-        ref_align = [
-            inverse_word_hashmap[i] if i is not None else "-" for i in ref_align
-        ]
+        start_idx_of_best_alignment_ref = -1
+        start_idx_of_best_alignment_pred = -1
+        for ref_idx, pred_idx in zip(
+            best_alignment.indices[0], best_alignment.indices[1]
+        ):
+            if pred_idx >= idx_of_pred_words:
+                start_idx_of_best_alignment_ref = ref_idx
+                start_idx_of_best_alignment_pred = pred_idx
+                break
 
-        # Storing the aligned predicted and reference words
+        ref_align = []
+        pred_align = []
+
+        if start_idx_of_best_alignment_ref != -1:
+            ref_align = [word for word in self.reference_words]
+            pred_align = ["-"] * start_idx_of_best_alignment_ref + self.predicted_words
+
         self.pred_align = pred_align
         self.ref_align = ref_align
+
+        self.history.extend(self.predicted_words)
+        if len(self.history) > self.history_length:
+            self.history = self.history[-self.history_length :]
 
     def prepare_output_sentences(self):
         """
@@ -152,6 +208,8 @@ class NWAligner(Emission):
         Returns:
             A tuple containing the transformed sentences and their corresponding timestamps.
         """
+        if len(self.pred_align) == 0:
+            return [], []
         sentence_times = []
         sentences = []
         idx = 0
@@ -188,12 +246,16 @@ class NWAligner(Emission):
                 idy += 1
 
         # Initialize lists with the first elements from sentences and sentence_times
-        sentence_times_no_duplicates = [
-            sentence_times[len(sentences) - len(self.predicted_words)]
-        ]
-        sentences_no_duplicates = [
-            sentences[len(sentences) - len(self.predicted_words)]
-        ]
+        sentence_times_no_duplicates = []
+        sentences_no_duplicates = []
+        if len(sentence_times) > 0:
+            # Initialize lists with the first elements from sentences and sentence_times
+            sentence_times_no_duplicates = [
+                sentence_times[len(sentences) - len(self.predicted_words)]
+            ]
+            sentences_no_duplicates = [
+                sentences[len(sentences) - len(self.predicted_words)]
+            ]
 
         idx = len(sentences) - len(self.predicted_words) + 1
 
@@ -209,9 +271,6 @@ class NWAligner(Emission):
                 sentence_times_no_duplicates[i - idx][1] = sentence_times[i][1]
                 idx += 1
 
-        # Print the predicted words sentence indices
-        print("Indices: {}".format(self.predicted_words_sentence_idx[:]))
-
         return sentences_no_duplicates, sentence_times_no_duplicates
 
     def write_alignment_results(self):
@@ -225,104 +284,74 @@ class NWAligner(Emission):
             for i, j in zip(self.pred_align, self.ref_align):
                 f.write("{}\t{}\n".format(i, j))
 
-    def needleman_wunsch(self, sequence1, sequence2, match=1, mismatch=1, gap=1):
-        # Calculate the lengths of the input sequences
-        len_sequence1 = len(sequence1)
-        len_sequence2 = len(sequence2)
+    def needleman_wunsch(
+        self,
+        reference_seq,
+        predicted_seq,
+        mode="global",
+        match_score=1,
+        mismatch_score=-1,
+        open_gap_score=-1,
+        extend_gap_score=-1,
+        target_end_gap_score=0.0,
+        query_end_gap_score=0.0,
+    ):
+        def ints_to_string(int_list):
+            int_list = [i if i != 45 else 1114110 for i in int_list]
+            unicode_list = [chr(i + 1) for i in int_list]
+            str_list = "".join([chr(ord(c)) for c in unicode_list])
+            return str_list
 
-        # Optimal score at each possible pair of characters.
-        scores = np.zeros((len_sequence1 + 1, len_sequence2 + 1))
+        def string_to_ints(str_list):
+            unicode_list = [chr(ord(c)) for c in str_list]
 
-        # Initialize the first column of the scores matrix with gap penalties
-        scores[:, 0] = np.linspace(0, -len_sequence1 * gap, len_sequence1 + 1)
-
-        # Initialize the first row of the scores matrix with zeros
-        # Using zeros rather than gap penalties means that there is
-        # no penalty for not aligning the start of sequence2 with
-        # the start of sequence1. This means we can align a short snippet
-        # of text (sequence2) with a longer piece of text (sequence1).
-        scores[0, :] = np.zeros(
-            scores[0, :].shape
-        )  # np.linspace(0, -len_sequence2 * gap, len_sequence2 + 1)
-
-        # Pointers to trace through an optimal alignment.
-        pointers = np.zeros((len_sequence1 + 1, len_sequence2 + 1))
-
-        # Set the pointers in the first column to 3, representing a gap in sequence1
-        pointers[:, 0] = 3
-
-        # Set the pointers in the first row to 4, representing a gap in sequence2
-        pointers[0, :] = 4
-
-        # Temporary scores.
-        temp_scores = np.zeros(3)
-
-        # Calculate scores and pointers for each position in the scores matrix
-        for i in range(len_sequence1):
-            for j in range(len_sequence2):
-                # Calculate the score for a match or mismatch
-                if sequence1[i] == sequence2[j]:
-                    temp_scores[0] = scores[i, j] + match
+            int_list = []
+            for i in range(len(unicode_list)):
+                ord_c = ord(unicode_list[i])
+                if ord_c == 45:
+                    int_list.append(-1)
+                elif ord_c == 1114111:
+                    int_list.append(45)
                 else:
-                    temp_scores[0] = scores[i, j] - mismatch
+                    int_list.append(ord_c - 1)
 
-                # Calculate the score for a gap in sequence1
-                temp_scores[1] = scores[i, j + 1] - gap
+            return int_list
 
-                # Calculate the score for a gap in sequence2
-                temp_scores[2] = scores[i + 1, j] - gap
+        reference_seq_converted = ints_to_string(reference_seq)
+        predicted_seq_converted = ints_to_string(predicted_seq)
 
-                # Determine the maximum score among the three options
-                max_score = np.max(temp_scores)
+        # Create an aligner object
+        aligner = PairwiseAligner()
 
-                # Update the scores matrix with the maximum score
-                scores[i + 1, j + 1] = max_score
+        # Set the aligner attributes
+        aligner.mode = mode
+        aligner.match_score = match_score
+        aligner.mismatch_score = mismatch_score
+        aligner.open_gap_score = open_gap_score
+        aligner.extend_gap_score = extend_gap_score
+        aligner.target_end_gap_score = target_end_gap_score
+        aligner.query_end_gap_score = query_end_gap_score
 
-                # Update the pointers matrix based on the maximum score
-                if temp_scores[0] == max_score:
-                    pointers[i + 1, j + 1] += 2
-                if temp_scores[1] == max_score:
-                    pointers[i + 1, j + 1] += 3
-                if temp_scores[2] == max_score:
-                    pointers[i + 1, j + 1] += 4
+        # Perform the alignment
+        scores = aligner.score(reference_seq_converted, predicted_seq_converted)
+        alignments = aligner.align(reference_seq_converted, predicted_seq_converted)
 
-        # Trace through an optimal alignment.
-        # Find the index of the maximum score in the last row of the scores matrix
-        max_index = np.where(scores[-1, :] == np.max(scores[-1, :]))[0][0]
+        best_alignment = alignments[0]
+        alignment_reference_seq = str(best_alignment[0])
+        alignment_predicted_seq = str(best_alignment[1])
+        alignment_score = best_alignment.score
 
-        # Initialize the starting positions for backtracking
-        i = len_sequence1
-        # Setting the start index of j to max_index rather than len_sequence2
-        # means that the ebd of sequence2 does not have to align with the end of
-        # sequence1.
-        j = max_index  # len_sequence2
+        start = next(
+            (i for i, element in enumerate(alignment_predicted_seq) if element != "-"),
+            -1,
+        )
+        end = len(alignment_predicted_seq) - next(
+            (
+                i
+                for i, element in enumerate(reversed(alignment_predicted_seq))
+                if element != "-"
+            ),
+            -1,
+        )
 
-        # Lists to store the aligned sequences
-        aligned_sequence1 = []
-        aligned_sequence2 = []
-
-        # Backtrack from the maximum score position to the start position
-        while i > 0 or j > 0:
-            if pointers[i, j] in [2, 5, 6, 9]:
-                # Match or mismatch
-                aligned_sequence1.append(sequence1[i - 1])
-                aligned_sequence2.append(sequence2[j - 1])
-                i -= 1
-                j -= 1
-            elif pointers[i, j] in [3, 5, 7, 9]:
-                # Gap in sequence1
-                aligned_sequence1.append(sequence1[i - 1])
-                aligned_sequence2.append(None)
-                i -= 1
-            elif pointers[i, j] in [4, 6, 7, 9]:
-                # Gap in sequence2
-                aligned_sequence1.append(None)
-                aligned_sequence2.append(sequence2[j - 1])
-                j -= 1
-
-        # Reverse the aligned sequences to get the correct order
-        aligned_sequence1 = aligned_sequence1[::-1]
-        aligned_sequence2 = aligned_sequence2[::-1]
-
-        # Return the aligned sequences
-        return aligned_sequence1, aligned_sequence2
+        return best_alignment
