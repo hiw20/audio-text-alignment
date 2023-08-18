@@ -413,7 +413,7 @@ import asr.subtitles as subs
 from unidecode import unidecode
 from num2words import num2words
 import numba
-from PIL import Image
+from PIL import Image, ImageDraw, ImageFont
 from collections import defaultdict
 
 
@@ -810,6 +810,7 @@ def main():
 
     # Overlay the images using a blend function
     overlay = Image.blend(heatmap_red_colored, heatmap_bw, alpha=0.5)
+
     overlay.save("figures/heatmap_overlay.png")
 
     # Calculate accuracy and missed predictions

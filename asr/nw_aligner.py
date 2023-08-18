@@ -3,6 +3,7 @@ from asr.emission import Emission
 import numpy as np
 from Bio import pairwise2
 from Bio.Align import PairwiseAligner
+import os
 
 
 class NWAligner(Emission):
@@ -277,6 +278,11 @@ class NWAligner(Emission):
         """
         Writes the alignment results to a file.
         """
+        folder_path = "output_subtitles"
+
+        if not os.path.exists(folder_path):
+            os.makedirs(folder_path)
+
         with open("output_subtitles/text.txt", "w") as f:
             f.write("")
 

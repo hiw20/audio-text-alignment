@@ -387,7 +387,7 @@ class Accuracy(SubtitleMetric):
                 x=pred_times,
                 y=pred_subtitle_indices,
                 mode="markers",
-                marker=dict(color="blue"),
+                marker=dict(color="blue", size=3),
                 name="Predicted",
             )
         )
@@ -413,7 +413,7 @@ class Accuracy(SubtitleMetric):
         fig.update_yaxes(title_text="Subtitle Index")
 
         # Save the figure as an image
-        fig.write_image(f"{output_filename}.png")
+        fig.write_image(f"{output_filename}.png", scale=3)
 
     def _generate_subtitle_comparison(
         self, ground_truth_subtitle, decoded_subtitle, aligned_subtitle
