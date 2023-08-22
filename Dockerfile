@@ -26,7 +26,7 @@ RUN mkdir /app
 
 RUN apt update
 RUN apt install git -y
-RUN git clone https://github.com/daandouwe/ngram-lm.git /app
+# RUN git clone https://github.com/daandouwe/ngram-lm.git /app
 
 COPY ./requirements.txt /app
 RUN pip install -r app/requirements.txt
@@ -34,5 +34,13 @@ RUN pip install -r app/requirements.txt
 
 COPY . /app
 
-COPY ./ngram_data/arpa/ /app/ngram-lm
-COPY ./ngram_data/out/ /app/ngram-lm
+# COPY ./ngram_data/arpa /app/ngram-lm/arpa
+# COPY ./ngram_data/out /app/ngram-lm/out
+
+WORKDIR /app
+RUN ls ngram-lm
+RUN ls ngram-lm/arpa
+
+RUN mkdir -p /app/output_subtitles
+RUN mkdir -p /app/figures
+# RUN python3 ./generate_data.py --start=0 --end=1

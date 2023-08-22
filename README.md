@@ -1,3 +1,6 @@
+WARNING - RUNNING THIS CODE WILL TAKE OVER 9 HOURS INCLUDING THE 
+BUILD FOR THE DOCKER IMAGE.
+
 To run this code you need to use docker.
 
 1. Run the command below in the root directory of this project
@@ -19,7 +22,7 @@ which subtitles to split the audio on. If you want to run on the complete audio 
 start=0 and end=10000. Any large number will work for the end parameter, it just has to be larger
 than the final subtitle index.
 
-python3 ./generate_data --start=0 --end=10000
+python3 ./generate_data.py --start=0 --end=10000
 
 5. Running the above command will generate the predicted subtitles. This will take a long time,
 almost 10 hours on a good GPU. This will also download all of the necessary ASR models. To make sure
@@ -38,4 +41,4 @@ docker commit <container_id> image-name
 
 7. To produce the figures run the command
 
-python3 ./generate_metrics --start=0 --end=10000
+python3 ./generate_metrics.py --start=0 --end=10000

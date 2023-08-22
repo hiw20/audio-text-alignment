@@ -1,6 +1,6 @@
 kenlm
 ngram-lm
-lexicon.txt
+# lexicon.txt
 ngram_data
 data
 _assets
