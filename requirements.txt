@@ -18,3 +18,4 @@ jiwer
 transformers
 biopython
 numba
+sox

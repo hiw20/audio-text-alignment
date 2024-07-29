@@ -1,6 +1,6 @@
 import torch
-from torchaudio.models.decoder import ctc_decoder
 import torchaudio
+
 
 torch.set_num_threads(1)
 
@@ -24,44 +24,16 @@ class Decoder:
 
     def __init__(
         self,
-        waveform,
         original_sample_rate,
         model,
-        labels,
-        lexicon_filepath,
-        tokens_filepath,
-        lm_filepath,
         device,
-        subtitles,
         resample_rate=16000,
     ):
-        self.waveform = waveform
         self.original_sample_rate = original_sample_rate
         self.model = model
-        self.labels = labels
-        self.lexicon_filepath = lexicon_filepath
-        self.tokens_filepath = tokens_filepath
-        self.lm_filepath = lm_filepath
         self.device = device
-        self.subtitles = subtitles
         self.resample_rate = resample_rate
 
-        # Set the weight for the language model
-        LM_WEIGHT = 2
-        # Set the score for individual words
-        WORD_SCORE = 0
-
-        # Initialize the CTC decoder
-        self.decoder = ctc_decoder(
-            lexicon=self.lexicon_filepath,
-            tokens=self.tokens_filepath,
-            lm=self.lm_filepath,
-            nbest=1,
-            beam_size=1024,
-            lm_weight=LM_WEIGHT,
-            word_score=WORD_SCORE,
-            beam_size_token=None,
-        )
 
     def decode(self, timestep, audio_slice):
         """
@@ -75,52 +47,59 @@ class Decoder:
             tuple: A tuple containing the decoded tokens and their corresponding timesteps.
         """
 
+        print(timestep)
+        print(timestep["start"])
+
         start_time = timestep["start"]
         end_time = timestep["end"]
         duration = end_time - start_time
+
+
 
         # Extract the emission tensor from the audio slice
         emission = self._extract_emission(audio_slice, self.model)
         timestep_ratio = duration / emission.shape[1]
 
-        # Perform beam search decoding using the CTC decoder
-        beam_search_result = self.decoder(emission)
+        timesteps = [start_time + i * timestep_ratio for i in range(emission.shape[1])]
 
-        best_result = None
-        best_score = -10e6
+        # # Perform beam search decoding using the CTC decoder
+        # beam_search_result = self.decoder(emission)
 
-        # Find the best result with the highest score
-        for result in beam_search_result:
-            for r in result:
-                if r.score > best_score:
-                    best_result = r
-                    best_score = r.score
+        # best_result = None
+        # best_score = -10e6
 
-        tokens = []
-        timesteps = []
+        # # Find the best result with the highest score
+        # for result in beam_search_result:
+        #     for r in result:
+        #         if r.score > best_score:
+        #             best_result = r
+        #             best_score = r.score
 
-        # Convert the tokens and timesteps to lowercase and calculate the actual timesteps
-        for token, timestep in zip(best_result.tokens, best_result.timesteps):
-            token = self.labels[token].lower()
-            timestep = timestep.item()
+        # tokens = []
+        # timesteps = []
 
-            if len(tokens) > 0:
-                if token != "|":
-                    tokens.append(token)
-                    timesteps.append(start_time + timestep_ratio * timestep)
+        # # Convert the tokens and timesteps to lowercase and calculate the actual timesteps
+        # for token, timestep in zip(best_result.tokens, best_result.timesteps):
+        #     token = self.labels[token].lower()
+        #     timestep = timestep.item()
 
-                elif tokens[-1] != "|":
-                    tokens.append(token)
-                    timesteps.append(start_time + timestep_ratio * timestep)
-            else:
-                tokens.append(token)
-                timesteps.append(start_time + timestep_ratio * timestep)
+        #     if len(tokens) > 0:
+        #         if token != "|":
+        #             tokens.append(token)
+        #             timesteps.append(start_time + timestep_ratio * timestep)
 
-        # Remove the start and end tokens and corresponding timesteps
-        tokens = tokens[1:-1]
-        timesteps = timesteps[1:-1]
+        #         elif tokens[-1] != "|":
+        #             tokens.append(token)
+        #             timesteps.append(start_time + timestep_ratio * timestep)
+        #     else:
+        #         tokens.append(token)
+        #         timesteps.append(start_time + timestep_ratio * timestep)
 
-        return tokens, timesteps, emission
+        # # Remove the start and end tokens and corresponding timesteps
+        # tokens = tokens[1:-1]
+        # timesteps = timesteps[1:-1]
+
+        return emission, timesteps
 
     def _extract_emission(self, waveform, model):
         """
