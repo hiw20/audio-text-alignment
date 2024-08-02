@@ -58,7 +58,7 @@ class Aligner:
         return waveform, sample_rate
 
     def preprocess(self):
-        self.text_tokens = tokenize(self.text)  # Tokenize text using your chosen method
+        self.text_tokens, _, _ = tokenize(self.text)  # Tokenize text using your chosen method
 
     def decode_audio(self):
         self.timesteps, self.audio_segments = self.slicer.slice(self.waveform, self.sample_rate, max_step=30, buffer_region=0.0, vad=True)
@@ -118,23 +118,25 @@ def configure_torch():
     return device
 
 if __name__ == "__main__":
+    import argparse
+    
+    parser = argparse.ArgumentParser(description="Alignment script")
+    parser.add_argument("--emissions", type=str, required=True, help="Path to the emissions file")
+    parser.add_argument("--emission_timesteps", type=str, required=True, help="Path to the emission timesteps file")
+    parser.add_argument("--input_mp3", type=str, required=True, help="Path to the input MP3 file")
+    parser.add_argument("--input_text", type=str, required=True, help="Path to the input text file")
+
+    args = parser.parse_args()
 
     # Write emissions to file for use in testing alignment method
-    file_path = "emission.txt"
-
-    # Open the file in append mode
-    with open(file_path, "w") as file:
-        # Convert the list to a string and write it to the file
+    with open(args.emissions, "w") as file:
         file.write("\n")
 
-    file_path = "emission_timesteps.txt"
-
-    # Open the file in append mode
-    with open(file_path, "w") as file:
+    with open(args.emission_timesteps, "w") as file:
         file.write("\n")
 
     device = configure_torch()
-    aligner = Aligner("./Chapter 01 - The Worst Birthday.mp3", "Chapter 01.txt", "WAV2VEC2_ASR_BASE_960H", device)
+    aligner = Aligner(args.input_mp3, args.input_text, "WAV2VEC2_ASR_BASE_960H", device)
     aligner.load_data()
     aligner.preprocess()
     aligner.decode_audio()

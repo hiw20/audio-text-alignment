@@ -10,6 +10,11 @@ import numba
 from PIL import Image, ImageDraw, ImageFont
 from collections import defaultdict
 import json
+import nltk
+from nltk.tokenize import sent_tokenize
+import json
+
+nltk.download('punkt')
 
 # Function to convert time to seconds
 def time_to_seconds(time):
@@ -394,13 +399,43 @@ def create_word_segments(char_time_pairs):
     return words, timesteps
 
 
+def create_sentence_timestep_mapping(original_chars, original_timesteps):
+    # Join the character array into a single string
+    original_text = ''.join(original_chars)
+    
+    # Tokenize the text into sentences
+    sentences = sent_tokenize(original_text)
+    
+    # Find the start and end indices of each sentence
+    sentence_indices = []
+    start_idx = 0
+    for sentence in sentences:
+        start_idx = original_text.find(sentence, start_idx)
+        end_idx = start_idx + len(sentence) - 1
+        sentence_indices.append((start_idx, end_idx))
+        start_idx = end_idx + 1
+    
+    # Map sentence indices to timesteps
+    sentence_timesteps = []
+    for start_idx, end_idx in sentence_indices:
+        start_timestep = original_timesteps[start_idx]
+        end_timestep = original_timesteps[end_idx]
+        sentence_timesteps.append({'start': start_timestep, 'end': end_timestep})
+    
+    # Create the result dictionary
+    result = {
+        'sentences': sentences,
+        'timesteps': sentence_timesteps
+    }
+    
+    return result
 # Main function
-def main():
+def main(emission_file, emission_timesteps_file, input_text_file, output_json_file):
     device = configure_torch()
 
     tokens, tokens_to_id = load_tokens()
-    predicted_timestamps = load_emission_timesteps("emission_timesteps.txt")
-    queries = load_emission_data("emission.txt").to(device)
+    predicted_timestamps = load_emission_timesteps(emission_timesteps_file)
+    queries = load_emission_data(emission_file).to(device)
 
     non_speech_idx = remove_non_speech(queries)
     queries = queries[~non_speech_idx]
@@ -409,77 +444,61 @@ def main():
     predicted_timestamps = predicted_timestamps[~non_speech_idx]
     predicted_timestamps = predicted_timestamps.tolist()
 
-    with open("Chapter 01.txt", 'r') as f:
-            text = f.read()
-    
-    text = tokenize(text)
+    with open(input_text_file, 'r') as f:
+        original_text = f.read()
 
-    text = "".join(text).replace(" ", "|")#[:300]
-    tokens = [tokens_to_id[c] for c in text]
+    processed_text, index_map_original_to_processed, index_map_processed_to_original = tokenize(original_text)
+
+    processed_text = "".join(processed_text).replace(" ", "|")
+    tokens = [tokens_to_id[c] for c in processed_text]
     keys = torch.Tensor(tokens).type(torch.long).to(device)
 
     heatmap_data = calculate_heatmap_data(queries, keys)
-    save_heatmap_image(heatmap_data, "heatmap.png")
 
     path_scores = path_finder(heatmap_data)
     heatmap_data_augmented = (path_scores * 255).astype(np.uint8)[::-1]
-    im = Image.fromarray(heatmap_data_augmented, "L")
-    im.save("figures/heatmap_processed.png")
 
     reverse_path_scores = reverse_path_finder(heatmap_data, path_scores)
     reverse_heatmap_data_augmented = (reverse_path_scores * 255).astype(np.uint8)[::-1]
-    im = Image.fromarray(reverse_heatmap_data_augmented, "L")
-    im.save("figures/heatmap_processed_reverse.png")
 
     reverse_path_scores_no_duplicates = reverse_path_scores
-    reverse_heatmap_data_no_duplicates = (reverse_path_scores * 255).astype(np.uint8)[
-        ::-1
-    ]
-    heatmap_red = Image.fromarray(reverse_heatmap_data_no_duplicates, mode="L")
-
-    # Create a red heatmap overlay
-    heatmap_red_colored = Image.new("RGB", heatmap_red.size)
-    red_overlay = Image.new("RGB", heatmap_red.size, color=(255, 0, 0))
-    heatmap_red_colored.paste(red_overlay, mask=heatmap_red)
-
-    heatmap_data_im = (heatmap_data * 255).astype(np.uint8)[::-1]
-    heatmap_bw = Image.fromarray(heatmap_data_im, mode="L")
-    heatmap_bw = heatmap_bw.convert("RGB")
-
-    # Overlay the images using a blend function
-    overlay = Image.blend(heatmap_red_colored, heatmap_bw, alpha=0.5)
-
-    heatmap_bw.save("figures/heatmap_overlay.png")
-
-    pred_text_indices, pred_timesteps = np.where(reverse_path_scores == 1)
-    
-
+    reverse_heatmap_data_no_duplicates = (reverse_path_scores * 255).astype(np.uint8)[::-1]
 
     pred_text_indices, pred_timesteps = np.where(reverse_path_scores_no_duplicates == 1)
 
-    char_time_pairs = [(text[i], (predicted_timestamps[j], predicted_timestamps[j])) for i, j in zip(pred_text_indices, pred_timesteps)]
-    
-    words, timesteps = create_word_segments(char_time_pairs)
-    
-    # for i, j in zip(np.array(predicted_timestamps)[pred_timesteps[:300]], [text[i] for i in pred_text_indices[:300]] ):
-    #     print(i, j)
+    original_chars = str(original_text)
+    original_timesteps = [-1]*len(original_chars)
 
-    # for i, j in zip(timesteps, words ):
-    #     print(i, j)
+    for time_idx, processed_text_idx in zip(pred_timesteps, pred_text_indices):
+        time = round(predicted_timestamps[time_idx], 2)
+        original_text_idx = index_map_processed_to_original[processed_text_idx]
+        orig_char = repr(original_text[original_text_idx])
+        proc_char = repr(processed_text[processed_text_idx])
 
-    # print(pred_text_indices[:300])
-    # print(pred_timesteps[:300])
+        original_timesteps[original_text_idx] = time
 
-    result = {
-        "words": words,
-        "timesteps": timesteps
-    }
+    for i, timestep in enumerate(original_timesteps):
+        if timestep == -1:
+            if i == 0:
+                original_timesteps[i] = 0
+            else:
+                original_timesteps[i] = original_timesteps[i-1]
 
+    # Generate the sentence-timestep mapping
+    result = create_sentence_timestep_mapping(original_chars, original_timesteps)
 
-
-    with open("output.json", "w") as json_file:
+    with open(output_json_file, "w") as json_file:
         json.dump(result, json_file, indent=4)
 
-
 if __name__ == "__main__":
-    main()
+    import argparse
+
+    parser = argparse.ArgumentParser(description="Process emission data and map it to text with timestamps.")
+    parser.add_argument("--emission_file", type=str, required=True, help="File containing emission data")
+    parser.add_argument("--emission_timesteps_file", type=str, required=True, help="File containing emission timesteps")
+    parser.add_argument("--input_text_file", type=str, required=True, help="File containing the input text")
+    parser.add_argument("--output_json_file", type=str, required=True, help="File to save the output JSON")
+
+    args = parser.parse_args()
+
+    main(args.emission_file, args.emission_timesteps_file, args.input_text_file, args.output_json_file)
